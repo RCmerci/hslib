@@ -1,5 +1,6 @@
 module HsLib.Base64.Base64
     (encode
+    ,decode
     ) where
  
 import Control.Monad (join)
@@ -140,7 +141,9 @@ revTable 56 = 60
 revTable 57 = 61 
 revTable 43 = 62 
 revTable 47 = 63 
+revTable 61 = 61                -- pad 
 
+              
 pad :: Word8
 pad = 61 -- fromIntegral $ ord '='
 
@@ -149,7 +152,7 @@ encode s = let ws = BS.unpack s in
            BS.pack $ encode' ws []
     where
       encode' ws r = case get24bits ws of
-                       (r', []) -> join $ Prelude.reverse (r':r)
+                       (r', []) -> join $ reverse (r':r)
                        (r', next) -> encode' next (r':r)
       get24bits :: [Word8] -> ([Word8], [Word8])
       get24bits [] = (,) [] []
@@ -173,6 +176,22 @@ encode s = let ws = BS.unpack s in
 -- of the entire encoding (as recommended), a covert channel that can be
 -- used to "leak" information is made possible.  
 decode :: ByteString -> ByteString
-decode b64 = undefined
-    
-                       
+decode b64 = let ws = BS.unpack b64 in
+             BS.pack $ decode' ws []
+    where
+      decode' ws r = case get4chars ws of
+                       (r', []) -> join $ reverse (r':r)
+                       (r', next) -> decode' next (r':r)
+      get4chars :: [Word8] -> ([Word8], [Word8])
+      get4chars [] = ([], [])
+      get4chars (a:b:c:d:tail)
+                | c == pad && d == pad = (,) [shiftL a' 2 .|. shiftR b' 4] []        -- 61 => '='
+                | d == pad = (,) [shiftL a' 2 .|. shiftR b' 4
+                                ,shiftL b' 4 .|. shiftR c' 2] []
+                | True = (,) [shiftL a' 2 .|. shiftR b' 4
+                             ,shiftL b' 4 .|. shiftR c' 2
+                             ,shiftL c' 6 .|. d'] tail
+          where a' = revTable a
+                b' = revTable b
+                c' = revTable c
+                d' = revTable d
