@@ -2,7 +2,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleContexts #-}
 module HsLib.Json.Parser ( value
-                         , Value(..)
                          , JsonP(..)
                          ) where
 
@@ -14,17 +13,19 @@ import Data.Map.Strict (Map, fromList)
 import Text.Parsec as P
 import Text.Parsec.Prim
     
+import HsLib.Json.Types (JsonValue(..))
+    
 type JsonParser t a = forall s m . Stream s m t => ParsecT s () m a
 type JsonP a = JsonParser Char a
 
-data Value = JsonBool !Bool
-           | JsonNull
-           | JsonObject !(Map Text Value)
-           | JsonArray ![Value]
-           --  Octal and hex forms are not allowed.  Leading zeros are not allowed. RFC4627-2.4
-           | JsonNum !Double
-           | JsonStr !Text
-             deriving (Show)
+-- data Value = JsonBool !Bool
+--            | JsonNull
+--            | JsonObject !(Map Text Value)
+--            | JsonArray ![Value]
+--            --  Octal and hex forms are not allowed.  Leading zeros are not allowed. RFC4627-2.4
+--            | JsonNum !Double
+--            | JsonStr !Text
+--              deriving (Show)
     
 colon :: JsonP Char
 colon = char ':'
@@ -80,16 +81,16 @@ num = (\a b c -> read $ concat [a,b,c]) <$> beforeDot <*> afterDotbeforeE <*> af
                          return $ v1 : v2)
                      <|> return "0") >>= \s -> return ("E" ++ s)
              
-false :: JsonP Value
+false :: JsonP JsonValue
 false = P.string "false" >> return (JsonBool False)
 
-true :: JsonP Value
+true :: JsonP JsonValue
 true = P.string "true" >> return (JsonBool True)
 
-null :: JsonP Value
+null :: JsonP JsonValue
 null = P.string "null" >> return JsonNull
 
-object :: JsonP Value
+object :: JsonP JsonValue
 object = between beginObject endObject $ do
            kv <- member `sepBy` try valueSeparator
            return $ JsonObject $ fromList kv
@@ -99,16 +100,16 @@ object = between beginObject endObject $ do
                  v <- value
                  return $ (pack k, v)
 
-array :: JsonP Value
+array :: JsonP JsonValue
 array = between beginArray endArray $ JsonArray <$> value `sepBy` valueSeparator
 
-number :: JsonP Value
+number :: JsonP JsonValue
 number = JsonNum <$> num
 
-string :: JsonP Value
+string :: JsonP JsonValue
 string = JsonStr . pack <$> jsonString
 
-value :: JsonP Value
+value :: JsonP JsonValue
 value = ws >> choice [false,    -- f
                       true,     -- t
                       HsLib.Json.Parser.null,     -- n

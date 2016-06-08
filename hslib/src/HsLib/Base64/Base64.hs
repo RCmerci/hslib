@@ -142,7 +142,6 @@ revTable 57 = 61
 revTable 43 = 62 
 revTable 47 = 63 
 revTable 61 = 61                -- pad 
-
               
 pad :: Word8
 pad = 61 -- fromIntegral $ ord '='
