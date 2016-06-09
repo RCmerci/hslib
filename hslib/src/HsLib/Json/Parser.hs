@@ -8,10 +8,8 @@ module HsLib.Json.Parser ( value
     
 import Control.Monad
 import Data.Text hiding (concat)
-import Data.Functor.Identity
 import Data.Map.Strict (Map, fromList)
 import Text.Parsec as P
-import Text.Parsec.Prim
     
 import HsLib.Json.Types (JsonValue(..))
     
@@ -68,8 +66,8 @@ jsonString = between (char '"') (char '"') $
             return $ "\\" ++ a
                    
               
-num :: JsonP Double
-num = (\a b c -> read $ concat [a,b,c]) <$> beforeDot <*> afterDotbeforeE <*> afterE
+num :: JsonP Rational
+num = (\a b c -> toRational (read $ concat [a,b,c] :: Double)) <$> beforeDot <*> afterDotbeforeE <*> afterE
       where beforeDot = do {char '-';
                             n <- many digit;
                             return $ "-" ++ n}
