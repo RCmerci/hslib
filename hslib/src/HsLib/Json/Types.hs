@@ -3,16 +3,18 @@
 module HsLib.Json.Types (
                          JsonValue(..),
                          Json(..),
+                         encodeJsonValue,
                         ) where
 
-import Data.Text as T
-import Data.Text.Lazy as TL
+import qualified Data.Text as T
+import qualified Data.Text.Lazy as TL
 import Data.Text.Encoding as TE
 import Data.Text.Lazy.Encoding as TLE
-import Data.ByteString as BS
-import Data.ByteString.Lazy as BSL
+import qualified Data.ByteString as BS
+import qualified Data.ByteString.Lazy as BSL
 import Data.Map as M
-
+import Data.List (intersperse)
+import Data.Monoid ((<>), mconcat, mempty)
     
 data JsonValue = JsonBool !Bool
                | JsonNull
@@ -23,9 +25,19 @@ data JsonValue = JsonBool !Bool
                | JsonStr !T.Text
                  deriving (Show)
 
-    
-
-
+encodeJsonValue :: JsonValue -> T.Text
+encodeJsonValue (JsonBool True) = "true"
+encodeJsonValue (JsonBool False) = "false"
+encodeJsonValue JsonNull = "null"
+encodeJsonValue (JsonObject a) = aux (M.toList a) []
+    where aux [] r = mconcat $ ["{"] ++ (intersperse "," $ reverse r) ++ ["}"]
+          aux ((k, v):t) r = aux t $ mconcat ["\"", k, "\"", ":", encodeJsonValue v] : r
+encodeJsonValue (JsonArray a) = aux a []
+    where aux [] r = mconcat $ ["["] ++ (intersperse "," $ reverse r) ++ ["]"]
+          aux (h:t) r = aux t $ (encodeJsonValue h : r)
+encodeJsonValue (JsonNum a) = T.pack $ show $ fromRational a
+encodeJsonValue (JsonStr a) = "\"" <> a <> "\""
+                        
 class Json a where
     toJson :: a -> JsonValue
     fromJson :: JsonValue -> Either String a
@@ -140,8 +152,12 @@ instance (Json a, Json b) => Json (a, b) where
 instance (Json a, Json b, Json c) => Json (a, b, c) where
     toJson (a, b, c) = JsonArray [toJson a, toJson b, toJson c]
     fromJson (JsonArray [a, b, c]) = (,,) <$> fromJson a <*> fromJson b <*> fromJson c
+    fromJson _ = Left "can't parse from value(not exist 3 elems in JsonArray) to (a,b,c)"
 
 
----- TODO:  map
--- instance Json a => Json (M.Map T.Text a) where
---     toJson = 
+-- map
+instance Json a => Json (M.Map T.Text a) where
+    toJson = JsonObject . M.fromList . fmap (\(k, v) -> (k, toJson v)) . M.toList
+    fromJson (JsonObject a) = fmap M.fromList $ sequence $ sequence <$>
+                              fmap (\(k, v) -> (k, fromJson v))  (M.toList a)
+    fromJson _ = Left "can't parse from value(not JsonObject) to Map "

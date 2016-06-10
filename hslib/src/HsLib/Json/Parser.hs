@@ -1,9 +1,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleContexts #-}
-module HsLib.Json.Parser ( value
-                         , JsonP(..)
-                         ) where
+module HsLib.Json.Parser ( jsonParse ) where
 
     
 import Control.Monad
@@ -117,3 +115,5 @@ value = ws >> choice [false,    -- f
                       HsLib.Json.Parser.string]   -- "
 
 
+jsonParse :: Text -> Either ParseError JsonValue
+jsonParse = parse value ""

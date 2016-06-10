@@ -1,19 +1,28 @@
-module HsLib.Json where
+module HsLib.Json (
+                   Json(..)
+                  , encode
+                  , encodeString
+                  , decode
+                  , decodeString
+                  ) where
 
 
 import Data.Text
     
-import HsLib.Json.Types (Json)
+import HsLib.Json.Types (Json(..), encodeJsonValue)
+import HsLib.Json.Parser (jsonParse)
+import Text.Parsec.Error (ParseError)
 
     
 encode :: Json a => a -> Text
-encode = undefined
-
+encode = encodeJsonValue . toJson
+    
+    
 encodeString :: Json a => a -> String
-encodeString = undefined
+encodeString = unpack . encode
 
-decode :: Json a => Text -> Either String a               
-decode = undefined
+decode :: Json a => Text -> Either ParseError (Either String a)               
+decode s = fromJson <$> (jsonParse s)
 
-decodeString :: Json a => String -> Either String a
-decodeString = undefined
+decodeString :: Json a => String -> Either ParseError (Either String a)
+decodeString = decode . pack
